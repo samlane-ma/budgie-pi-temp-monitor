@@ -93,7 +93,7 @@ def create_settings(config_file):
     if os.path.isfile(config_file):
         os.remove(config_file)
     config = SafeConfigParser()
-    config.read(self.config_file)
+    config.read(config_file)
     config.add_section('Default')
     config.set('Default','Interval','10')
     config.set('Default','Celcius','True')
