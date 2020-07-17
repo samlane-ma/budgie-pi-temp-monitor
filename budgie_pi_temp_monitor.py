@@ -4,7 +4,6 @@ import os.path
 import subprocess
 import time
 import threading
-from configparser import SafeConfigParser
 gi.require_version('Budgie', '1.0')
 from gi.repository import Budgie, GObject, Gtk, Gio
 
@@ -25,82 +24,25 @@ from gi.repository import Budgie, GObject, Gtk, Gio
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
     
-    Icon made by Hirschwolf <https://www.flaticon.com/authors/hirschwolf>
+    Icons made by Freepik from http://www.freepik.com
     https://www.flaticon.com
 """
 
-sleeptime = 10
-celcius = True
+app_settings = Gio.Settings.new("com.github.samlane-ma.budgie-pi-temp-monitor")
 
-def load_settings(config_file):
-
-    # Load the settings from the config file.
-    # If the config file does not exist, create it.
-    # If the config file has invalid data, reset it.
-    
-    need_new = False
-    if not os.path.isfile(config_file):
-        need_new = True
-    config = SafeConfigParser()
-    config.read(config_file)
-    if not config.has_option('Default','Interval'):
-        need_new = True
-    if not config.has_option('Default','Celcius'):
-        need_new = True
-    if need_new:
-        create_settings(config_file)
-        need_new = False
-    config.read(config_file)
-    read_interval = config.get('Default','Interval')
-    read_degree = config.get('Default','Celcius')
-    if not read_degree in ['True','False']:
-        need_new = True
-    if not int(read_interval) in range(5,60):
-        need_new = True
-    if need_new:
-        create_settings(config_file)
-
-    config.read(config_file)
-    read_interval = config.get('Default','Interval')
-    read_degree = config.get('Default','Celcius')       
-            
-    ret_interval = int(read_interval)
-    if read_degree == "True":
-        ret_degree = True
-    else:
-        ret_degree = False    
-    
+def load_settings():
+    ret_interval = app_settings.get_int("interval")
+    ret_degree = app_settings.get_boolean("celcius")   
     return ret_interval, ret_degree
 
 
-def save_settings(save_interval, save_degree, config_file):
-
-    # saves the settings to the config file
-
-    config = SafeConfigParser()
-    config.read(config_file)
-    config.set('Default','Interval',str(save_interval))
-    config.set('Default','Celcius',str(save_degree))
-    with open(config_file, 'w') as f:
-        config.write (f)
-        
+def save_degree_setting(save_degree):
+    app_settings.set_boolean("celcius",save_degree)
     
-def create_settings(config_file):
-    
-    # Deletes the config file if it exists, and creates a new one
-    # using default values.  Called when file is missing or invalid.
-
-    if os.path.isfile(config_file):
-        os.remove(config_file)
-    config = SafeConfigParser()
-    config.read(config_file)
-    config.add_section('Default')
-    config.set('Default','Interval','10')
-    config.set('Default','Celcius','True')
-    with open(config_file, 'w') as f:
-        config.write (f)
-        
-
+def save_interval_setting(save_interval):
+    app_settings.set_int("interval",save_interval)  
+  
+  
 class BudgiePiTemp(GObject.GObject, Budgie.Plugin):
     """ This is simply an entry point into your Budgie Applet implementation.
         Note you must always override Object, and implement Plugin.
@@ -127,21 +69,19 @@ class BudgiePiTempSettings(Gtk.Grid):
     def __init__(self, setting):
         super().__init__()
         
-        global sleeptime
-        global celcius
-        
-        self.config_path = os.getenv("HOME")+'/.config/pi-temp-monitor.ini'
-        sleeptime, celcius = load_settings(self.config_path)
+        sleeptime, celcius = load_settings()
 
         self.spin_label = Gtk.Label("Temperature check interval (s):")
         self.spin_label.set_justify(Gtk.Justification.LEFT)
         spin_adjust = Gtk.Adjustment (sleeptime, 5, 60, 1, 0, 0)
         self.interval_spin = Gtk.SpinButton(adjustment = spin_adjust, climb_rate = 1, digits = 0)
+        self.interval_spin.set_halign(Gtk.Align.END)
         self.interval_spin.connect("value-changed", self.change_interval)
         
-        self.degree_label = Gtk.Label("Show temperature in fahrenheit :")
+        self.degree_label = Gtk.Label("Show temperature in Farenheit :")
         self.degree_label.set_justify(Gtk.Justification.LEFT)
         self.degree_type = Gtk.Switch()
+        self.degree_type.set_halign(Gtk.Align.END)
         self.degree_type.set_active(not celcius)
         self.degree_type.connect("notify::active", self.change_degree_type)
         
@@ -155,20 +95,16 @@ class BudgiePiTempSettings(Gtk.Grid):
         
         
     def change_interval(self, event):
-        global sleeptime
-        global celcius
         sleeptime = self.interval_spin.get_value_as_int()
-        save_settings(str(sleeptime),str(celcius), self.config_path)
+        save_interval_setting(sleeptime)
 
         
     def change_degree_type(self, button, active):
-        global sleeptime
-        global celcius
         if button.get_active():
             celcius = False
         else:
             celcius = True
-        save_settings(str(sleeptime),str(celcius), self.config_path)
+        save_degree_setting(celcius)
   
 
 
@@ -185,13 +121,7 @@ class BudgiePiTempApplet(Budgie.Applet):
         self.connect("destroy",Gtk.main_quit)
 
         currenttemp = "--"
-        
-        global sleeptime
-        global celcius
-        
-        self.config_path = os.getenv("HOME")+'/.config/pi-temp-monitor.ini'
-        sleeptime, celcius = load_settings(self.config_path)
-    
+   
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         
         self.add(box)
@@ -206,23 +136,23 @@ class BudgiePiTempApplet(Budgie.Applet):
         self.updatethread.setDaemon(True)
         self.updatethread.start()
 
-
-   	     
     def updatetemp(self):
         while True:
+            sleeptime, celcius = load_settings()
             cputempfile = open("/sys/class/thermal/thermal_zone0/temp")
             self.currenttemp = cputempfile.read()
             cputempfile.close()
-            GObject.idle_add(self.updatelabel)
+            GObject.idle_add(self.updatelabel, celcius)
             time.sleep(sleeptime)
  
             
-    def updatelabel(self):
-        if celcius:
+    def updatelabel(self, celcius):
+        use_celcius = celcius
+        if use_celcius:
             self.cputemp.set_text(str(int(int(self.currenttemp) /1000))+"°C")
         else:
-            fahrenheit = int(int(self.currenttemp) / 1000 * 9 / 5 + 32)
-            self.cputemp.set_text(str(fahrenheit)+"°F")
+            farenheit = int(int(self.currenttemp) / 1000 * 9 / 5 + 32)
+            self.cputemp.set_text(str(farenheit)+"°F")
 
     
     def do_supports_settings(self):
