@@ -5,7 +5,7 @@ import subprocess
 import time
 import threading
 gi.require_version('Budgie', '1.0')
-from gi.repository import Budgie, GObject, Gtk, Gio
+from gi.repository import Budgie, GObject, Gtk, Gio, GLib
 
 """
     Budgie Pi Temperature Monitor Plugin - Show the Current CPU Temp on Raspberry Pi
@@ -29,6 +29,7 @@ from gi.repository import Budgie, GObject, Gtk, Gio
 """
 
 app_settings = Gio.Settings.new("com.github.samlane-ma.budgie-pi-temp-monitor")
+path = "com.solus-project.budgie-panel"
 
 class BudgiePiTemp(GObject.GObject, Budgie.Plugin):
     """ This is simply an entry point into your Budgie Applet implementation.
@@ -89,6 +90,7 @@ class BudgiePiTempApplet(Budgie.Applet):
 
         self.uuid = uuid
         self.connect("destroy",Gtk.main_quit)
+        self.keep_running = True
 
         self.currenttemp = "--"
         self.sleeptime = app_settings.get_int("interval")
@@ -109,13 +111,15 @@ class BudgiePiTempApplet(Budgie.Applet):
         self.updatethread.setDaemon(True)
         self.updatethread.start()
 
+        GLib.idle_add(self.watch_applet, self.uuid)
+
     def load_settings(self, *args):
         self.sleeptime = app_settings.get_int("interval")
         self.celcius = app_settings.get_boolean("celcius")
         GObject.idle_add(self.update_panel)
 
     def update_temp(self):
-        while True:
+        while self.keep_running:
             cputempfile = open("/sys/class/thermal/thermal_zone0/temp")
             self.currenttemp = cputempfile.read()
             cputempfile.close()
@@ -131,6 +135,33 @@ class BudgiePiTempApplet(Budgie.Applet):
             suffix = "°C"
         temp = str(round(temp_int))
         self.cputemp.set_text(temp + suffix)
+
+    def find_applet (self, check_uuid, applets):
+        for find_uuid in applets:
+            if find_uuid == check_uuid:
+                return True
+        return False 
+
+    def watch_applet (self, check_uuid):
+        applets = []
+        panel_settings = Gio.Settings(path);
+        allpanels_list = panel_settings.get_strv("panels")
+        for p in allpanels_list:
+            panelpath = "/com/solus-project/budgie-panel/panels/{" + p + "}/"
+            self.currpanelsubject_settings = Gio.Settings.new_with_path(path + ".panel", panelpath)
+            applets = self.currpanelsubject_settings.get_strv("applets")
+            if self.find_applet(check_uuid, applets):
+                # Need this signal id to disconnect it on quit
+                self.panel_signal_id = self.currpanelsubject_settings.connect(
+                              "changed::applets", self.is_applet_running, check_uuid)
+        return False
+
+    def is_applet_running (self, arg1, arg2, check_uuid):
+        applets =self.currpanelsubject_settings.get_strv("applets")
+        if not self.find_applet(check_uuid, applets):
+            # Disconnect the signals
+            self.currpanelsubject_settings.disconnect(self.panel_signal_id)
+            self.keep_running = False
 
     def do_supports_settings(self):
         """Return True if support setting through Budgie Setting,
