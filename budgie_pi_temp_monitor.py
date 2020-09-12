@@ -58,25 +58,25 @@ class BudgiePiTempSettings(Gtk.Grid):
         sleeptime = app_settings.get_int("interval")
         celcius = app_settings.get_boolean("celcius")
 
-        self.spin_label = Gtk.Label(label="Interval (s):")
-        self.spin_label.set_halign(Gtk.Align.START)
-        spin_adjust = Gtk.Adjustment (sleeptime, 5, 60, 1, 0, 0)
-        self.interval_spin = Gtk.SpinButton(adjustment = spin_adjust, climb_rate = 1, digits = 0)
-        self.interval_spin.set_halign(Gtk.Align.END)
+        label_interval = Gtk.Label(label="Interval (s):")
+        label_interval.set_halign(Gtk.Align.START)
+        adjust_interval = Gtk.Adjustment (sleeptime, 5, 60, 1, 0, 0)
+        spin_interval = Gtk.SpinButton(adjustment = adjust_interval, climb_rate = 1, digits = 0)
+        spin_interval.set_halign(Gtk.Align.END)
 
-        self.degree_label = Gtk.Label(label="Celcius:")
-        self.degree_label.set_halign(Gtk.Align.START)
-        self.degree_type = Gtk.Switch()
-        self.degree_type.set_halign(Gtk.Align.END)
-        self.degree_type.set_active(celcius)
+        label_degreetype = Gtk.Label(label="Celcius:")
+        label_degreetype.set_halign(Gtk.Align.START)
+        switch_degree_type = Gtk.Switch()
+        switch_degree_type.set_halign(Gtk.Align.END)
+        switch_degree_type.set_active(celcius)
 
-        self.attach(self.spin_label,    0, 1, 2, 1)
-        self.attach_next_to(self.interval_spin, self.spin_label, Gtk.PositionType.RIGHT, 1, 1)
-        self.attach(self.degree_label,  0, 2, 2, 1)
-        self.attach_next_to(self.degree_type, self.degree_label, Gtk.PositionType.RIGHT, 1, 1)
+        app_settings.bind("interval", spin_interval, "value", Gio.SettingsBindFlags.DEFAULT)
+        app_settings.bind("celcius", switch_degree_type, "active", Gio.SettingsBindFlags.DEFAULT)
 
-        app_settings.bind("interval", self.interval_spin, "value", Gio.SettingsBindFlags.DEFAULT)
-        app_settings.bind("celcius", self.degree_type, "active", Gio.SettingsBindFlags.DEFAULT)
+        self.attach(label_interval, 0, 1, 2, 1)
+        self.attach_next_to(spin_interval, label_interval, Gtk.PositionType.RIGHT, 1, 1)
+        self.attach(label_degreetype, 0, 2, 2, 1)
+        self.attach_next_to(switch_degree_type, label_degreetype, Gtk.PositionType.RIGHT, 1, 1)
         self.show_all()
 
 class BudgiePiTempApplet(Budgie.Applet):
@@ -123,11 +123,14 @@ class BudgiePiTempApplet(Budgie.Applet):
             time.sleep(self.sleeptime)
 
     def update_panel(self):
-        if self.celcius:
-            self.cputemp.set_text(str(int(int(self.currenttemp) /1000))+"°C")
+        temp_int = int(self.currenttemp) / 1000
+        if not self.celcius:
+            suffix = "°F"
+            temp_int = temp_int * 9 / 5 + 32
         else:
-            farenheit = int(int(self.currenttemp) / 1000 * 9 / 5 + 32)
-            self.cputemp.set_text(str(farenheit)+"°F")
+            suffix = "°C"
+        temp = str(round(temp_int))
+        self.cputemp.set_text(temp + suffix)
 
     def do_supports_settings(self):
         """Return True if support setting through Budgie Setting,
