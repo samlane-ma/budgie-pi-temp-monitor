@@ -1,0 +1,9 @@
+[Plugin]
+Loader=python3
+Module=budgie_pi_temp_monitor
+Name=Pi Temperature Monitor
+Description=Monitor the Pi CPU Temperature
+Authors=Samuel Lane
+Copyright=Copyright © 2020 Samuel Lane
+Website=https://github.com/samlane-ma/budgie-pi-temp-monitor.git
+Icon=sensors-temperature-symbolic
