@@ -4,10 +4,10 @@ CPU Temperature applet for Ubuntu Budgie on Raspberry Pi
 Adds an applet to monitor the CPU temperature.
 Settings allow changing of the measurement interval [5..60] seconds and switching from Celcius to Fahrenheit
 
-Temperature icon will be dim normally, now will brighten when temperature gets close to throttle limit
-Icon gets bright at 75 degrees, Raspi throttles at 85
+Temperature icon will be dim normally, now will brighten when temperature gets close to throttle limit.
+Icon gets bright at 75 degrees, Raspi throttles at 85.
 
-Popover now shows the highest and lowest temperatures, and the time which they were recorded
+Popover now shows the highest and lowest temperatures, and the time which they were recorded.
 
 To install (for Debian/Ubuntu):
 
