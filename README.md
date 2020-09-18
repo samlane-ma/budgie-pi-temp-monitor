@@ -1,4 +1,7 @@
 # budgie-pi-temp-monitor
+
+# Replaced with Vala based Pi Temperature Monitor applet
+
 CPU Temperature applet for Ubuntu Budgie on Raspberry Pi
 
 Adds an applet to monitor the CPU temperature.
@@ -13,7 +16,7 @@ To install (for Debian/Ubuntu):
 
     mkdir build
     cd build
-    meson --prefix=/usr --libdir=/usr/lib --datadir=/usr/share
+    meson --prefix=/usr --libdir=/usr/lib
     sudo ninja install
 
 * for other distros omit libdir and datadir or specify the location of the distro library and data folders
